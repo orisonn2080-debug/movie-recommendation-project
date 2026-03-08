@@ -35,6 +35,29 @@ def get_poster_html(title, path):
     """
 
 # --- טעינת נתונים ומודלים (Caching) ---
+# --- הגדרת המאפיינים - חייב להופיע ב-app.py! ---
+similarity_features = [
+    'runtime', 'genre_Action', 'genre_Adventure', 'genre_Animation', 
+    'genre_Comedy', 'genre_Crime', 'genre_Documentary', 'genre_Drama', 
+    'genre_Family', 'genre_Fantasy', 'genre_History', 'genre_Horror', 
+    'genre_Music', 'genre_Mystery', 'genre_Romance', 'genre_Science Fiction', 
+    'genre_TV Movie', 'genre_Thriller', 'genre_Unknown', 'genre_War', 
+    'genre_Western', 'writer_exp_rating', 'director_exp_rating', 
+    'cast_exp_rating', 'movie_age', 'popularity_log'
+]
+
+xgb_features = [
+    'runtime', 'imdb_rating', 'cast_size', 'financial_status',
+    'vote_count_log', 'popularity_log', 'genre_Action', 'genre_Adventure',
+    'genre_Animation', 'genre_Comedy', 'genre_Crime', 'genre_Documentary',
+    'genre_Drama', 'genre_Family', 'genre_Fantasy', 'genre_History',
+    'genre_Horror', 'genre_Music', 'genre_Mystery', 'genre_Romance',
+    'genre_Science Fiction', 'genre_TV Movie', 'genre_Thriller',
+    'genre_Unknown', 'genre_War', 'genre_Western', 'writer_avg_score',
+    'writer_exp_rating', 'director_exp_rating', 'cast_exp_rating',
+    'production_companies_exp_rating', 'production_countries_exp_rating',
+    'spoken_languages_exp_rating', 'movie_age'
+]
 @st.cache_resource
 def load_assets():
     # כאן עליך לטעון את הקבצים שהעלית ל-GitHub
