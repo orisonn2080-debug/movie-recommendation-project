@@ -1,41 +1,16 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import joblib # לטעינת המודל השמור
+import joblib
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import NearestNeighbors
-from sklearn.feature_extraction.text import TfidfVectorizer
 
-@st.cache_resource
-def load_assets():
-    # 1. טעינת הדאטה עם השם הנכון שיש ב-GitHub
-    df = pd.read_csv('movies_data.csv') 
-    
-    # 2. טעינת המודל
-    xgb_model = joblib.load('xgb_model.pkl')
-    
-    # 3. יצירת המטריצה בזמן אמת (במקום לטעון קובץ חסר)
-    tfidf = TfidfVectorizer(stop_words='english')
-    tfidf_matrix = tfidf.fit_transform(df['overview'].fillna(''))
-    
-    return df, xgb_model, tfidf_matrix
 # --- הגדרות דף ---
 st.set_page_config(page_title="Movie Recommender AI", page_icon="🎬", layout="wide")
 
-# --- פונקציית עזר לפוסטרים (Streamlit תומכת ב-HTML בסיסי) ---
-def get_poster_html(title, path):
-    base_url = "https://image.tmdb.org/t/p/w200"
-    img_url = f"{base_url}{path}" if path and str(path) != 'nan' else "https://via.placeholder.com/200x300?text=No+Poster"
-    return f"""
-    <div style="text-align: center; margin-bottom: 20px;">
-        <img src="{img_url}" style="border-radius: 10px; width: 150px; box-shadow: 2px 2px 10px rgba(0,0,0,0.2);">
-        <p style="font-family: Arial; font-size: 14px; font-weight: bold; margin-top: 10px;">{title}</p>
-    </div>
-    """
-
-# --- טעינת נתונים ומודלים (Caching) ---
-# --- הגדרת המאפיינים - חייב להופיע ב-app.py! ---
+# --- רשימות מאפיינים (חובה שיהיו כאן) ---
 similarity_features = [
     'runtime', 'genre_Action', 'genre_Adventure', 'genre_Animation', 
     'genre_Comedy', 'genre_Crime', 'genre_Documentary', 'genre_Drama', 
@@ -58,60 +33,92 @@ xgb_features = [
     'production_companies_exp_rating', 'production_countries_exp_rating',
     'spoken_languages_exp_rating', 'movie_age'
 ]
+
+# --- פונקציית עזר לפוסטרים ---
+def get_poster_html(title, path):
+    base_url = "https://image.tmdb.org/t/p/w200"
+    img_url = f"{base_url}{path}" if path and str(path) != 'nan' else "https://via.placeholder.com/200x300?text=No+Poster"
+    return f"""
+    <div style="text-align: center; margin-bottom: 20px;">
+        <img src="{img_url}" style="border-radius: 10px; width: 150px; box-shadow: 2px 2px 10px rgba(0,0,0,0.2);">
+        <p style="font-family: Arial; font-size: 14px; font-weight: bold; margin-top: 10px;">{title}</p>
+    </div>
+    """
+
+# --- טעינת נכסים (Caching) ---
 @st.cache_resource
 def load_assets():
-    # כאן עליך לטעון את הקבצים שהעלית ל-GitHub
-    df = pd.read_csv('df_cleaned_with_overview.csv') # וודא שזה השם
-    xgb_model = joblib.load('xgb_model.pkl') # וודא ששמרת את המודל כ-pkl
-    tfidf_matrix = joblib.load('tfidf_matrix.pkl') # וודא ששמרת את המטריצה
-    return df, xgb_model, tfidf_matrix
+    # שים לב לשם הקובץ המדויק ב-GitHub
+    df = pd.read_csv('movies_data.csv') 
+    xgb_model = joblib.load('xgb_model.pkl')
+    
+    # יצירת TF-IDF בזמן אמת (חוסך העלאת קובץ ענק)
+    tfidf = TfidfVectorizer(stop_words='english')
+    tfidf_matrix = tfidf.fit_transform(df['overview'].fillna(''))
+    
+    # הכנת מודל KNN
+    scaler = StandardScaler()
+    scaled_data = scaler.fit_transform(df[similarity_features])
+    nn_model = NearestNeighbors(n_neighbors=50, metric='cosine')
+    nn_model.fit(scaled_data)
+    
+    return df, xgb_model, tfidf_matrix, nn_model, scaler
 
-# נסה לטעון, אם הקבצים חסרים תוצג הודעה
 try:
-    df_cleaned, xgb_model, tfidf_matrix = load_assets()
-except:
-    st.error("Missing data files! Make sure to upload CSV and Model files to GitHub.")
+    df, xgb_model, tfidf_matrix, nn_model, scaler = load_assets()
+except Exception as e:
+    st.error(f"Error loading files: {e}")
     st.stop()
 
-# --- לוגיקת ההמלצה (הקוד המקורי שלך) ---
-def build_recommendation(movie_title, min_rating):
-    # (כאן נכנסת כל פונקציית build_ultimate_recommendation שכתבת)
-    # ... לוגיקת KNN, TF-IDF ו-XGBoost ...
-    # חזרה על הנוסחה המכפלתית: (plot_sim + 0.1) * similarity_score * norm_predicted * age_factor
-    pass 
+# --- לוגיקת המלצה ---
+def get_recommendations(movie_title, min_rating):
+    if movie_title not in df['title'].values:
+        return pd.DataFrame()
+    
+    movie_idx = df[df['title'] == movie_title].index[0]
+    source_movie_data = df.loc[[movie_idx], similarity_features]
+    source_scaled = scaler.transform(source_movie_data)
+    
+    distances, indices = nn_model.kneighbors(source_scaled)
+    candidates = df.iloc[indices[0]].copy()
+    candidates['similarity_score'] = 1 - distances[0]
+    
+    # NLP
+    pos = df.index.get_loc(movie_idx)
+    candidate_positions = [df.index.get_loc(idx) for idx in candidates.index]
+    plot_sim = cosine_similarity(tfidf_matrix[pos], tfidf_matrix[candidate_positions])
+    candidates['plot_sim'] = plot_sim[0]
+    
+    # Prediction
+    candidates['predicted_rating'] = xgb_model.predict(candidates[xgb_features])
+    
+    # Ranking
+    candidates['final_rank'] = (candidates['plot_sim'] + 0.1) * candidates['similarity_score'] * (candidates['predicted_rating'] / 10)
+    
+    res = candidates[(candidates['vote_average'] >= min_rating) & (candidates['title'] != movie_title)]
+    return res.sort_values(by='final_rank', ascending=False).head(5)
 
-# --- ממשק המשתמש של Streamlit ---
-st.title("🎬 AI Movie Recommender")
-st.markdown("Find your next favorite movie using Machine Learning.")
+# --- ממשק משתמש ---
+st.title("🎬 Pro Movie Recommender")
 
-# Sidebar להגדרות
 with st.sidebar:
     st.header("Settings")
     min_rating = st.slider("⭐ Minimum Rating", 5.0, 9.0, 6.5, 0.1)
 
-# חיפוש סרט
-movie_titles = sorted(df_cleaned['title'].unique())
-selected_movie = st.selectbox("🔍 Search for a movie you liked:", [""] + movie_titles)
+movie_titles = sorted(df['title'].unique())
+selected_movie = st.selectbox("🔍 Select a movie you liked:", [""] + movie_titles)
 
 if st.button("Get Recommendations!"):
-    if selected_movie == "":
-        st.warning("Please select a movie first.")
+    if selected_movie:
+        res = get_recommendations(selected_movie, min_rating)
+        if res.empty:
+            st.warning(f"No results found for '{selected_movie}' above rating {min_rating}.")
+        else:
+            st.subheader(f"✨ Top Picks for you:")
+            cols = st.columns(5)
+            for i, (idx, row) in enumerate(res.iterrows()):
+                with cols[i]:
+                    st.markdown(get_poster_html(row['title'], row['poster_path']), unsafe_allow_html=True)
+            st.dataframe(res[['title', 'vote_average', 'predicted_rating']])
     else:
-        with st.spinner('Thinking...'):
-            res = build_recommendation(selected_movie, min_rating)
-            
-            if res.empty:
-                st.info(f"No movies found above {min_rating}. Try lowering the threshold!")
-            else:
-                st.subheader(f"✨ Recommendations for {selected_movie}:")
-                
-                # הצגה בטורים (Grid)
-                cols = st.columns(5)
-                for idx, row in res.reset_index().iterrows():
-                    with cols[idx]:
-                        # שימוש במילון הפוסטרים
-                        p_path = df_cleaned[df_cleaned['title'] == row['title']]['poster_path'].values[0]
-                        st.markdown(get_poster_html(row['title'], p_path), unsafe_allow_html=True)
-                
-                st.write("---")
-                st.dataframe(res) # הצגת הטבלה מתחת
+        st.info("Please select a movie from the list.")
