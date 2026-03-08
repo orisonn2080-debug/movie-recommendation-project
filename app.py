@@ -5,7 +5,21 @@ import joblib # לטעינת המודל השמור
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import NearestNeighbors
+from sklearn.feature_extraction.text import TfidfVectorizer
 
+@st.cache_resource
+def load_assets():
+    # 1. טעינת הדאטה עם השם הנכון שיש ב-GitHub
+    df = pd.read_csv('movies_data.csv') 
+    
+    # 2. טעינת המודל
+    xgb_model = joblib.load('xgb_model.pkl')
+    
+    # 3. יצירת המטריצה בזמן אמת (במקום לטעון קובץ חסר)
+    tfidf = TfidfVectorizer(stop_words='english')
+    tfidf_matrix = tfidf.fit_transform(df['overview'].fillna(''))
+    
+    return df, xgb_model, tfidf_matrix
 # --- הגדרות דף ---
 st.set_page_config(page_title="Movie Recommender AI", page_icon="🎬", layout="wide")
 
