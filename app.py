@@ -55,18 +55,33 @@ def get_recommendations(movie_title, min_rating):
     return res.sort_values(by='final_rank', ascending=False).head(5)
 
 st.title("Movie Recommender")
-selected_movie = st.selectbox("Select a movie:", [""] + sorted(df['title'].unique().tolist()))
-min_rating = st.sidebar.slider("Minimum Rating", 5.0, 9.5, 6.5)
+selected_movie = st.selectbox("Select a movie you liked:", [""] + sorted(df['title'].unique().tolist()))
+min_rating = st.sidebar.slider("Minimum Rating for recommendations", 5.0, 9.5, 6.5)
 
 if st.button("Get Recommendations"):
     if selected_movie:
+        source_row = df[df['title'] == selected_movie].iloc[0]
+        st.markdown("---")
+        st.subheader(f"You selected: {selected_movie}")
+        col_src1, col_src2 = st.columns([1, 3])
+        with col_src1:
+            st.markdown(get_poster_html(source_row['title'], source_row['poster_path']), unsafe_allow_html=True)
+        with col_src2:
+            st.write(f"**Actual Rating:** {source_row['vote_average']}")
+            st.write(f"**Popularity Score:** {round(source_row['popularity_log'], 2)}")
+            st.write(f"**Runtime:** {source_row['runtime']} min")
+            st.write(f"**Overview:** {source_row['overview']}")
+        st.markdown("---")
+        
         res = get_recommendations(selected_movie, min_rating)
+
         if not res.empty:
-            st.subheader("Top Picks for you:")
+            st.subheader("Top Picks for you (Based on your selection):")
             cols = st.columns(5)
             for i, (idx, row) in enumerate(res.iterrows()):
                 with cols[i]:
                     st.markdown(get_poster_html(row['title'], row['poster_path']), unsafe_allow_html=True)
-            st.table(res[['title', 'vote_average', 'predicted_rating']])
+            st.write("### Statistical Comparison:")
+            st.table(res[['title', 'vote_average', 'predicted_rating', 'similarity_score']])
         else:
-            st.warning("No high-quality matches found.")
+            st.warning("No high-quality matches found for this specific filter.")
