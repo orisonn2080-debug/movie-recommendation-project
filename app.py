@@ -61,7 +61,6 @@ selected_movie = st.selectbox("Select a movie you liked:", [""] + sorted(df['tit
 
 st.sidebar.header("Settings")
 min_rating = st.sidebar.slider("Minimum Rating for recommendations", 5.0, 9.5, 6.5)
-min_rating = st.sidebar.slider("Minimum Rating", 5.0, 9.5, 6.5)
 num_rec = st.sidebar.slider("Number of recommendations", 3, 20, 5)
 
 if st.button("Get Recommendations"):
