@@ -36,15 +36,21 @@ def get_recommendations(movie_title, min_rating):
     if movie_title not in df['title'].values:
         return pd.DataFrame()
     movie_idx = df[df['title'] == movie_title].index[0]
+    genre_cols = [col for col in df.columns if col.startswith('genre_')]
+    source_genres = df.loc[movie_idx, genre_cols]
+    active_genres = source_genres[source_genres == 1].index.tolist()
     source_scaled = scaler.transform(df.loc[[movie_idx], similarity_features])
     distances, indices = nn_model.kneighbors(source_scaled)
     candidates = df.iloc[indices[0]].copy()
     candidates['similarity_score'] = 1 - distances[0]
+    if active_genres:
+        candidates['genre_match_score'] = candidates[active_genres].sum(axis=1) / len(active_genres)
+    else:
+        candidates['genre_match_score'] = 0
     plot_sim = cosine_similarity(tfidf_matrix[movie_idx], tfidf_matrix[indices[0]])
     candidates['plot_sim'] = plot_sim[0]
-    candidates['predicted_rating'] = xgb_model.predict(candidates[xgb_features])
-    candidates['predicted_rating'] = candidates['predicted_rating'].clip(upper=10.0)
-    candidates['final_rank'] = (candidates['plot_sim'] * 0.4) + (candidates['similarity_score'] * 0.5) + ((candidates['predicted_rating'] / 10) * 0.1)
+    candidates['predicted_rating'] = xgb_model.predict(candidates[xgb_features]).clip(upper=10.0)
+    candidates['final_rank'] = ((candidates['plot_sim'] * 0.3) + (candidates['similarity_score'] * 0.4) + (candidates['genre_match_score'] * 0.2) + ((candidates['predicted_rating'] / 10) * 0.1))
     res = candidates[(candidates['vote_average'] >= min_rating) & (candidates['title'] != movie_title)]
     return res.sort_values(by='final_rank', ascending=False).head(5)
 
