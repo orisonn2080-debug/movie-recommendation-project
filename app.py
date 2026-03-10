@@ -49,7 +49,7 @@ def get_recommendations(movie_title, min_rating):
         candidates['genre_match_score'] = 0
     plot_sim = cosine_similarity(tfidf_matrix[movie_idx], tfidf_matrix[indices[0]])
     candidates['plot_sim'] = plot_sim[0]
-    candidates['predicted_rating'] = xgb_model.predict(candidates[xgb_features]).clip(upper=10.0)
+    candidates['predicted_rating'] = np.minimum(xgb_model.predict(candidates[xgb_features]), 10.0)
     candidates['final_rank'] = ((candidates['plot_sim'] * 0.3) + (candidates['similarity_score'] * 0.4) + (candidates['genre_match_score'] * 0.2) + ((candidates['predicted_rating'] / 10) * 0.1))
     res = candidates[(candidates['vote_average'] >= min_rating) & (candidates['title'] != movie_title)]
     return res.sort_values(by='final_rank', ascending=False).head(5)
