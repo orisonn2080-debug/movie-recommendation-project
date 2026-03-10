@@ -44,7 +44,7 @@ def get_recommendations(movie_title, min_rating):
     candidates['plot_sim'] = plot_sim[0]
     candidates['predicted_rating'] = xgb_model.predict(candidates[xgb_features])
     candidates['predicted_rating'] = candidates['predicted_rating'].clip(upper=10.0)
-    candidates['final_rank'] = (candidates['plot_sim'] * 0.3) + (candidates['similarity_score'] * 0.5) + ((candidates['predicted_rating'] / 10) * 0.2)
+    candidates['final_rank'] = (candidates['plot_sim'] * 0.3) + (candidates['similarity_score'] * 0.5) + ((candidates['predicted_rating'] / 10) * 0.1) + ((candidates['vote_average'] / 10) * 0.1)
     res = candidates[(candidates['vote_average'] >= min_rating) & (candidates['title'] != movie_title)]
     return res.sort_values(by='final_rank', ascending=False).head(5)
 
