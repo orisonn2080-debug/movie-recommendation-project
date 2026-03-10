@@ -7,6 +7,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import NearestNeighbors
 
+st.markdown("""<style>.stApp a:has(svg) {display: none;} </style>""", unsafe_allow_html=True)
+
 st.set_page_config(page_title="Movie Recommender", page_icon="", layout="wide")
 
 similarity_features = ['runtime', 'genre_Action', 'genre_Adventure', 'genre_Animation', 'genre_Comedy', 'genre_Crime', 'genre_Documentary', 'genre_Drama', 'genre_Family', 'genre_Fantasy', 'genre_History', 'genre_Horror', 'genre_Music', 'genre_Mystery', 'genre_Romance', 'genre_Science Fiction', 'genre_TV Movie', 'genre_Thriller', 'genre_Unknown', 'genre_War', 'genre_Western', 'writer_exp_rating', 'director_exp_rating', 'cast_exp_rating', 'movie_age', 'popularity_log']
