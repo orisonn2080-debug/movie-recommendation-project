@@ -20,7 +20,7 @@ def get_poster_html(title, path):
 @st.cache_resource
 def load_assets():
     df_raw = pd.read_csv('movies_data.csv.gz', compression='gzip')
-    df = df_raw[df_raw['vote_count'] >= 500].copy().reset_index(drop=True)
+    df = df_raw[df_raw['vote_count'] >= 50].copy().reset_index(drop=True)
     model = joblib.load('xgb_model.pkl')
     tfidf = TfidfVectorizer(stop_words='english')
     tfidf_matrix = tfidf.fit_transform(df['overview'].fillna(''))
