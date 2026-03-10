@@ -90,7 +90,7 @@ if st.button("Get Recommendations"):
                         with cols[j]:
                             st.markdown(get_poster_html(row['title'], row['poster_path']), unsafe_allow_html=True)
                             release_year = 2026 - int(row['movie_age'])
-                            st.caption(f"Year: {release_year}")
+                            st.caption(f"({release_year})")
             st.write("### Statistical Comparison:")
             st.table(res[['title', 'vote_average', 'predicted_rating', 'similarity_score']])
         else:
