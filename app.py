@@ -58,22 +58,22 @@ except Exception as e:
 def get_recommendations(movie_title, min_rating):
     if movie_title not in df['title'].values:
         return pd.DataFrame()
-    
-    movie_idx = df[df['title'] == movie_title].index[0]
-    source_movie_data = df.loc[[movie_idx], similarity_features]
+    min_votes_threshold = 500
+    mask = (df['vote_count'] >= min_votes_threshold) | (df['title'] == movie_title)
+    qualified_df = df[mask].copy()
+    movie_idx_in_qualified = qualified_df[qualified_df['title'] == movie_title].index[0]
+    source_movie_data = qualified_df.loc[[movie_idx_in_qualified], similarity_features]
     source_scaled = scaler.transform(source_movie_data)
-    
-    distances, indices = nn_model.kneighbors(source_scaled)
-    candidates = df.iloc[indices[0]].copy()
+    distances, indices = nn_model.kneighbors(source_scaled, n_neighbors=min(50, len(qualified_df)))
+    candidates = qualified_df.iloc[indices[0]].copy()
     candidates['similarity_score'] = 1 - distances[0]
-
-    pos = df.index.get_loc(movie_idx)
-    candidate_positions = [df.index.get_loc(idx) for idx in candidates.index]
-    plot_sim = cosine_similarity(tfidf_matrix[pos], tfidf_matrix[candidate_positions])
+    original_idx = df[df['title'] == movie_title].index[0]
+    candidate_original_indices = candidates.index.tolist()
+    plot_sim = cosine_similarity(tfidf_matrix[original_idx], tfidf_matrix[candidate_original_indices])
     candidates['plot_sim'] = plot_sim[0]
     candidates['predicted_rating'] = xgb_model.predict(candidates[xgb_features])
-    candidates['final_rank'] = (candidates['plot_sim'] + 0.1) * candidates['similarity_score'] * (candidates['predicted_rating'] / 10)
-    
+    candidates['predicted_rating'] = candidates['predicted_rating'].clip(upper=10.0)
+    candidates['final_rank'] = ((candidates['plot_sim'] * 0.4) + (candidates['similarity_score'] * 0.3) + ((candidates['predicted_rating'] / 10) * 0.3))
     res = candidates[(candidates['vote_average'] >= min_rating) & (candidates['title'] != movie_title)]
     return res.sort_values(by='final_rank', ascending=False).head(5)
 
