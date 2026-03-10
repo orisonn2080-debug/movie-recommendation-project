@@ -34,7 +34,7 @@ def load_assets():
 
 df, xgb_model, tfidf_matrix, nn_model, scaler = load_assets()
 
-def get_recommendations(movie_title, min_rating):
+def get_recommendations(movie_title, min_rating, num_recommendations):
     if movie_title not in df['title'].values:
         return pd.DataFrame()
     movie_idx = df[df['title'] == movie_title].index[0]
@@ -54,11 +54,15 @@ def get_recommendations(movie_title, min_rating):
     candidates['predicted_rating'] = np.minimum(xgb_model.predict(candidates[xgb_features]), 10.0)
     candidates['final_rank'] = ((candidates['plot_sim'] * 0.3) + (candidates['similarity_score'] * 0.4) + (candidates['genre_match_score'] * 0.2) + ((candidates['predicted_rating'] / 10) * 0.1))
     res = candidates[(candidates['vote_average'] >= min_rating) & (candidates['title'] != movie_title)]
-    return res.sort_values(by='final_rank', ascending=False).head(5)
+    return res.sort_values(by='final_rank', ascending=False).head(num_recommendations)
 
 st.title("Movie Recommender")
 selected_movie = st.selectbox("Select a movie you liked:", [""] + sorted(df['title'].unique().tolist()))
+
+st.sidebar.header("Settings")
 min_rating = st.sidebar.slider("Minimum Rating for recommendations", 5.0, 9.5, 6.5)
+min_rating = st.sidebar.slider("Minimum Rating", 5.0, 9.5, 6.5)
+num_rec = st.sidebar.slider("Number of recommendations", 3, 20, 5)
 
 if st.button("Get Recommendations"):
     if selected_movie:
@@ -75,14 +79,18 @@ if st.button("Get Recommendations"):
             st.write(f"**Overview:** {source_row['overview']}")
         st.markdown("---")
         
-        res = get_recommendations(selected_movie, min_rating)
+        res = get_recommendations(selected_movie, min_rating, num_rec)
 
         if not res.empty:
-            st.subheader("Top Picks for you (Based on your selection):")
-            cols = st.columns(5)
-            for i, (idx, row) in enumerate(res.iterrows()):
-                with cols[i]:
-                    st.markdown(get_poster_html(row['title'], row['poster_path']), unsafe_allow_html=True)
+            st.subheader(f"Top {len(res)} Picks for you:")
+            for i in range(0, len(res), 5):
+                cols = st.columns(5)
+                for j in range(5):
+                    if i + j < len(res):
+                        row = res.iloc[i + j]
+                        with cols[j]:
+                            st.markdown(get_poster_html(row['title'], row['poster_path']), unsafe_allow_html=True)
+                            st.caption(row['title'])
             st.write("### Statistical Comparison:")
             st.table(res[['title', 'vote_average', 'predicted_rating', 'similarity_score']])
         else:
