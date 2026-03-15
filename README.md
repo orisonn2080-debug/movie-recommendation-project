@@ -6,6 +6,6 @@ How to open the app:
 While in the app:
   1) choose a movie you liked
   2) click "get recommendations"
-  3) adjust the settings in the menu in the left
+  3) adjust the settings in the menu in the left to your liking (the base settings are recommended)
   4) thats it!
      
